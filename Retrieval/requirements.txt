@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic
+google-cloud-storage
+google-cloud-aiplatform
+vertexai
+SQLAlchemy
+pg8000
+psycopg2-binary
+firebase-admin

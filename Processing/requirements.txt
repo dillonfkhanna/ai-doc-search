@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+google-cloud-storage
+vertexai
+google-cloud-aiplatform
+SQLalchemy
+langchain
+unstructured
+unstructured[all-docs]  
+google-cloud-aiplatform
+pg8000
+psycopg2-binary

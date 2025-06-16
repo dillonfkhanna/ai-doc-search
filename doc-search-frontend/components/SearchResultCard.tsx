@@ -1,12 +1,15 @@
-import { FileText, Download, Eye } from 'lucide-react';
-import { SearchResult } from '../library/api';
+import { Eye } from 'lucide-react';
+// --- CHANGE: Import the unified 'Document' interface ---
+import { Document } from '../library/api';
 
 interface SearchResultCardProps {
-  result: SearchResult;
-  onClick: (docu_name: string) => void;
+  // --- CHANGE: Use the 'Document' type for the result prop ---
+  result: Document;
+  // --- CHANGE: The onClick handler now passes the entire Document object ---
+  onClick: (doc: Document) => void;
 }
 
-// Helper function to get file extension and type info
+// Helper function to get file extension and type info (no changes needed)
 const getFileInfo = (filename: string) => {
   const extension = filename.split('.').pop()?.toLowerCase() || '';
   const fileTypes: Record<string, { icon: string; color: string; label: string }> = {
@@ -21,9 +24,9 @@ const getFileInfo = (filename: string) => {
   return fileTypes[extension] || { icon: '📄', color: 'bg-gray-500', label: extension.toUpperCase() };
 };
 
-// Helper function to format relevance score
+// Helper function to format relevance score (no changes needed)
 const getRelevanceLevel = (score?: number) => {
-  if (!score) return { level: 'Unknown', color: 'bg-gray-500', width: '0%' };
+  if (score === undefined || score === null) return { level: 'Unknown', color: 'bg-gray-500', width: '0%' };
   
   const percentage = Math.round(score * 100);
   if (percentage >= 90) return { level: 'Excellent', color: 'bg-green-500', width: `${percentage}%` };
@@ -36,18 +39,21 @@ export default function SearchResultCard({
   result,
   onClick,
 }: SearchResultCardProps) {
-  const fileName = result.display_name?.split("/").pop() || "Untitled Document";
+  // --- CHANGE: Use result.display_name directly, no need to split/pop ---
+  const fileName = result.display_name || "Untitled Document";
   const fileInfo = getFileInfo(fileName);
   const relevance = getRelevanceLevel(result.score);
 
   return (
     <li
-      onClick={() => onClick(result.docu_name)}
+      // --- CHANGE: Pass the entire 'result' object to the onClick handler ---
+      onClick={() => onClick(result)}
       className="group relative p-5 border border-gray-700 rounded-xl bg-gray-800 hover:bg-gray-750 hover:border-gray-600 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onClick(result.docu_name);
+        // --- CHANGE: Pass the entire 'result' object here as well ---
+        if (e.key === "Enter" || e.key === " ") onClick(result);
       }}
     >
       {/* Header with file info and actions */}
@@ -74,10 +80,10 @@ export default function SearchResultCard({
         {/* Quick action buttons and score */}
         <div className="flex items-center gap-2">
           {/* Large score display */}
-          {result.score && (
+          {result.score !== undefined && (
             <div className="text-right">
               <div className={`text-lg font-bold ${relevance.color.replace('bg-', 'text-')}`}>
-                {Math.round((result.score || 0) * 100)}%
+                {Math.round(result.score * 100)}%
               </div>
               <div className="text-xs text-gray-400">relevance</div>
             </div>
@@ -87,7 +93,8 @@ export default function SearchResultCard({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onClick(result.docu_name);
+                // --- CHANGE: Pass the entire 'result' object, fixing bug (docu_name didn't exist) ---
+                onClick(result);
               }}
               className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-lg transition-colors duration-150"
               title="Preview document"
@@ -99,11 +106,11 @@ export default function SearchResultCard({
       </div>
 
       {/* Relevance score bar */}
-      {result.score && (
+      {result.score !== undefined && (
         <div className="mb-3">
           <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
             <span>Relevance: {relevance.level}</span>
-            <span>{Math.round((result.score || 0) * 100)}%</span>
+            <span>{Math.round(result.score * 100)}%</span>
           </div>
           <div className="w-full bg-gray-700 rounded-full h-1.5">
             <div 
@@ -116,8 +123,9 @@ export default function SearchResultCard({
 
       {/* Document snippet */}
       <div className="relative">
+        {/* Use result.snippet for the text */}
         <p className="text-gray-300 text-sm leading-relaxed line-clamp-3">
-          {result.text}
+          {result.snippet}
         </p>
         {/* Fade effect for long text */}
         <div className="absolute bottom-0 right-0 w-8 h-6 bg-gradient-to-l from-gray-800 group-hover:from-gray-750 transition-colors duration-200 pointer-events-none" />

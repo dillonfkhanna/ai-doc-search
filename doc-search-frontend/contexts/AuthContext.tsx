@@ -10,7 +10,9 @@ import {
   signInWithPopup,
   UserCredential
 } from 'firebase/auth';
-import { auth } from '../library/firebase';
+import { getFirebase } from '../library/firebase';
+
+const { auth } = getFirebase();
 
 interface AuthContextType {
   currentUser: User | null;
@@ -60,12 +62,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
+    // This check ensures the Firebase listener is only set up in the browser
+    if (typeof window !== 'undefined') {
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setCurrentUser(user);
+        setLoading(false);
+      });
+      // Cleanup the listener when the component unmounts
+      return unsubscribe;
+    } else {
+      // On the server during the build, we know there is no user.
       setLoading(false);
-    });
-
-    return unsubscribe;
+    }
   }, []);
 
   const value: AuthContextType = {

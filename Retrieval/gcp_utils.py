@@ -2,9 +2,11 @@ from google.cloud import storage
 import os
 from datetime import timedelta
 from google.oauth2 import service_account
+import logging
 
 storage_client = storage.Client()
 
+logger = logging.getLogger(__name__)
 BUCKET_NAME = os.getenv("GCP_BUCKET_NAME")
 GCS_SA_KEY_PATH = "/secrets/gcs-key/sa.json"
 
@@ -14,21 +16,37 @@ if os.path.exists(GCS_SA_KEY_PATH):
 else:
     storage_client = storage.Client()
 
-def generateUploadUrl(filename, uid, content_type):
+def generateUploadUrl(gcs_path: str, content_type: str, doc_id: int) -> str:
     bucket = storage_client.bucket(BUCKET_NAME)
-    gcs_path = f"{uid}/{filename}"
     blob = bucket.blob(gcs_path)
+    
     url = blob.generate_signed_url(
-        version="v4", expiration=timedelta(minutes=15),
-        method="PUT", content_type=content_type
+        version="v4",
+        expiration=timedelta(minutes=15),
+        method="PUT",
+        content_type=content_type,
+        headers={"x-goog-meta-document-id": str(doc_id)}
     )
-    return url, gcs_path
+    return url
 
 def generatePreviewUrl(gcs_path):
     bucket = storage_client.bucket(BUCKET_NAME)
     blob = bucket.blob(gcs_path)
     url = blob.generate_signed_url(
-        version="v4", expiration=timedelta(minutes=60), method="GET"
+        version="v4", expiration=timedelta(minutes=60), method="GET", response_disposition="inline"
     )
     return url
 
+def delete_gcs_object(gcs_path: str):
+    logger.info(f"Attempting to delete GCS object: {gcs_path}")
+    try:
+        bucket = storage_client.bucket(BUCKET_NAME)
+        blob = bucket.blob(gcs_path)
+        blob.delete()
+        logger.info(f"Successfully deleted GCS object: {gcs_path}")
+    except Exception as e:
+        logger.error(
+            f"Failed to delete GCS object {gcs_path}. This may require "
+            f"manual cleanup in the GCS bucket.", 
+            exc_info=True
+        )

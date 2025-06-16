@@ -22,6 +22,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --memory=1Gi \
   --timeout=300 \
   --allow-unauthenticated \
+  --cpu=2 \
+  --min-instances=1 \
   --set-env-vars="NEON_DATABASE_URL=$NEON_DATABASE_URL,GCP_PROJECT_ID=$GCP_PROJECT_ID,GCP_REGION=$REGION,GCP_BUCKET_NAME=$GCP_BUCKET_NAME" \
   --set-secrets="/secrets/firebase-key/sa.json=firebase-auth-connection-key:latest,/secrets/gcs-key/sa.json=gcs-signer-key:latest"
 

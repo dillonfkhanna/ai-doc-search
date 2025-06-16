@@ -21,8 +21,12 @@ export default function Login() {
       } else {
         await signin(email, password);
       }
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error : unknown) {
+      let errorMessage = "A Login error occurred";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -34,8 +38,12 @@ export default function Login() {
 
     try {
       await signInWithGoogle();
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      let errorMessage = "A Login error occurred";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      setError(errorMessage);;
     } finally {
       setLoading(false);
     }

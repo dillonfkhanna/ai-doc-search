@@ -1,50 +1,28 @@
-export interface UserFile {
+
+export interface Document {
+  // Core document properties
   id: number;
   gcs_path: string;
+  display_name: string;
   filename: string;
-  display_name: string;
-  file_size_bytes: number;
-  content_type: string;
-  created_at: string; // ISO 8601 date string
+  created_at: string; 
+
+  // Optional properties that may not always be present
+  content_type?: string;
+  file_size_bytes?: number;
+
+  // Properties that only appear in search results
+  snippet?: string;
+  score?: number;
 }
 
-export interface SearchResult {
-  gcs_path: string;
-  display_name: string;
-  content_type: string | null;
-  snippet: string;
-  score: number;
-}
-
-export interface SignedUploadUrlResponse {
-  upload_url: string;
-  gcs_path: string;
+export interface UserStats {
+  document_count: number;
+  total_storage_bytes: number;
 }
 
 
-export async function getSignedUrl(
-  fileName: string,
-  fileType: string,
-  token: string
-): Promise<SignedUploadUrlResponse> {
-  const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/generate-upload-url`);
-  url.searchParams.append("filename", fileName);
-  url.searchParams.append("filetype", fileType);
-
-  const res = await fetch(url.toString(), {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!res.ok) throw new Error("Failed to get signed URL");
-
-  const data: SignedUploadUrlResponse = await res.json();
-  return data;
-}
-
-export async function fetchUserFiles(token: string): Promise<UserFile[]> {
+export async function fetchUserFiles(token: string): Promise<Document[]> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/files`, {
     method: "GET",
     headers: {
@@ -56,20 +34,14 @@ export async function fetchUserFiles(token: string): Promise<UserFile[]> {
     throw new Error("Failed to fetch user files");
   }
 
-  const data = await res.json();
-  return data.files;
-}
-
-
-export interface SearchResult {
-  docu_name: string;
-  text: string;
+  // The API now returns the array directly.
+  return res.json();
 }
 
 export async function queryDocuments(
   query: string,
   token: string
-): Promise<SearchResult[]> {
+): Promise<Document[]> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/query`, {
     method: "POST",
     headers: {
@@ -82,16 +54,17 @@ export async function queryDocuments(
   if (!res.ok) {
     throw new Error(`Query failed: ${res.statusText}`);
   }
-
-  const data = await res.json();
-  return data || [];}
+  
+  return res.json();
+}
 
 export async function generatePreviewUrl(
-  gcs_path: string, 
+  doc_id: number, 
   token: string
 ): Promise<{ preview_url: string }> {
   const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/generate-preview-url`);
-  url.searchParams.append("gcs_path", gcs_path);
+  // The backend now expects 'doc_id' as the parameter.
+  url.searchParams.append("doc_id", doc_id.toString());
 
   const res = await fetch(url.toString(), {
     method: "GET",
@@ -127,4 +100,80 @@ export async function checkDuplicateFile(
 
   const data = await res.json();
   return data.is_duplicate;
+}
+
+export async function fetchUserStats(token: string): Promise<UserStats> {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/user-stats`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch user stats");
+  }
+
+  return res.json();
+}
+
+interface InitiateUploadResponse {
+  upload_url: string;
+  doc_id: number;
+}
+
+
+export async function initiateUpload(fileName: string, fileType: string, fileHash: string, token: string): Promise<InitiateUploadResponse> {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/documents/initiate-upload`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ filename: fileName, filetype: fileType, file_hash: fileHash }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.detail || "Failed to initiate upload");
+  }
+  
+  return res.json();
+}
+
+export async function fetchDocumentStatus(doc_id: number, token: string): Promise<{status: string}> {
+  const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/document-status`);
+  // The backend now looks for 'doc_id' instead of 'hash'.
+  url.searchParams.append("doc_id", doc_id.toString());
+
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) throw new Error("Failed to fetch document status");
+  
+  return res.json();
+}
+
+export async function deleteDocument(
+  doc_id: number,
+  token: string
+): Promise<{ status: string; message: string }> {
+  const url = `${process.env.NEXT_PUBLIC_API_URL}/documents/${doc_id}`;
+
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    try {
+      const errorData = await res.json();
+      throw new Error(errorData.detail || "Failed to delete the document.");
+    } catch {
+      throw new Error(`Failed to delete the document. Server responded with status ${res.status}.`);
+    }
+  }
+
+  return res.json();
 }

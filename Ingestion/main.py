@@ -30,7 +30,8 @@ def gcs_trigger(event, context):
         "bucket": event['bucket'],
         "name": event['name'],
         "contentType": event.get('contentType', ""),
-        "size": event.get('size', 0)
+        "size": event.get('size', 0), 
+        "metadata": event.get('metadata', {}),
     }
     
     # Publish the message to Pub/Sub

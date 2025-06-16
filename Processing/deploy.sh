@@ -23,7 +23,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --set-env-vars="GCP_PROJECT_ID=$GCP_PROJECT_ID,GCP_REGION=$REGION,NEON_DATABASE_URL=$NEON_DATABASE_URL" \
   --memory=2Gi \
   --cpu=2 \
-  --timeout=300
+  --timeout=600
 
 echo "✅ Deployment of $SERVICE_NAME successful."
 

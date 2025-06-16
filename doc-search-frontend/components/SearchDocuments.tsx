@@ -1,126 +1,123 @@
-import React, { useState } from "react";
-import {
-  queryDocuments,
-  generatePreviewUrl,
-  SearchResult,
-} from "../library/api";
-import { useAuth } from "@/contexts/AuthContext";
-import SearchResultCard from "@/components/SearchResultCard";
-import DocumentPreviewModal from "@/components/DocumentPreviewModal";
+"use client";
+import React, { useState, useEffect } from 'react';
+import { Search, X } from 'lucide-react';
 
-export default function SearchDocuments() {
+// This component now receives functions as props from its parent
+interface SearchDocumentsProps {
+  onSearch: (query: string) => void;
+  onClear: () => void;
+  isSearching: boolean;
+}
+
+export default function SearchDocuments({ onSearch, onClear, isSearching }: SearchDocumentsProps) {
+  // The search text is now managed inside this component
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [loadingPreview, setLoadingPreview] = useState(false);
+  // Auto-clear search when query becomes empty
+  useEffect(() => {
+    if (query.trim() === "") {
+      onClear();
+    }
+  }, [query, onClear]);
 
-  const { currentUser } = useAuth();
+  const handlePerformSearch = () => {
+    if (!query.trim()) return;
+    onSearch(query);
+  };
 
-  const handleSearch = async () => {
-    if (!query.trim() || !currentUser) return;
-    setLoading(true);
-    setError(null);
+  const handleClear = () => {
+    setQuery("");
+    onClear(); // Call the clear function passed from the Home page
+  };
 
-    try {
-      const token = await currentUser.getIdToken();
-      const searchResults = await queryDocuments(query, token);
-      setResults(searchResults);
-    } catch (err: any) {
-      setError(err.message || "Search failed");
-    } finally {
-      setLoading(false);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handlePerformSearch();
     }
   };
 
-  const handleCardClick = async (gcs_path: string) => {
-    if (!currentUser) return;
-    setLoadingPreview(true);
-    try {
-      const token = await currentUser.getIdToken();
-      const { preview_url } = await generatePreviewUrl(gcs_path, token);
-      setPreviewUrl(preview_url);
-      setSelectedDoc(gcs_path);
-    } catch (err) {
-      setError("Failed to load document preview.");
-      console.error(err);
-    } finally {
-      setLoadingPreview(false);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setQuery(newValue);
+    
+    // If user deletes all text, automatically clear search results
+    if (newValue.trim() === "") {
+      onClear();
     }
-  };
-
-  const closeModal = () => {
-    setSelectedDoc(null);
-    setPreviewUrl(null);
   };
 
   return (
-    <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 mb-8">
-      <h3 className="text-xl font-semibold text-white mb-4">
-        Search Documents
-      </h3>
-
-      <div className="space-y-4">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search your documents..."
-            className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSearch();
-            }}
-            disabled={loading}
-          />
-          <button
-            onClick={handleSearch}
-            disabled={loading || !query.trim()}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition duration-200"
-            aria-label="Search"
-          >
-            <svg
-              className={`w-5 h-5 ${loading ? "animate-spin" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </button>
-        </div>
-
-        {error && <p className="text-red-400">{error}</p>}
-
-        {loadingPreview && <p className="text-white">Loading preview...</p>}
-
-        {results.length > 0 ? (
-          <ul className="flex flex-col gap-4 max-h-72 overflow-y-auto">
-            {results.map((r, i) => (
-              <SearchResultCard key={i} result={r} onClick={handleCardClick} />
-            ))}
-          </ul>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            
+    <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-semibold text-white">
+          Search Documents
+        </h3>
+        {query && (
+          <div className="text-sm text-gray-400">
+            Press Enter or click search to find results
           </div>
         )}
       </div>
-
-      {selectedDoc && previewUrl && (
-        <DocumentPreviewModal
-          previewUrl={previewUrl}
-          onClose={closeModal}
-          docInfo={{ filename: selectedDoc }}
+      
+      <div className="relative">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+          {/* Show a spinner inside the input when a search is running */}
+          {isSearching ? (
+            <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+          ) : (
+            <Search size={20} />
+          )}
+        </div>
+        
+        <input
+          type="text"
+          placeholder="Search across all documents..."
+          className="w-full pl-10 pr-20 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+          value={query}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          disabled={isSearching}
         />
+        
+        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+          {/* "X" button appears only when there is text */}
+          {query && !isSearching && (
+            <button
+              onClick={handleClear}
+              className="p-1.5 text-gray-500 hover:text-white hover:bg-gray-600 rounded-md transition-colors duration-150"
+              aria-label="Clear search"
+              title="Clear search"
+            >
+              <X size={16} />
+            </button>
+          )}
+          <button
+            onClick={handlePerformSearch}
+            disabled={isSearching || !query.trim()}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed rounded-md transition-colors duration-150 flex items-center gap-1.5"
+            aria-label="Search"
+            title="Search documents"
+          >
+            {isSearching ? (
+              <>
+                <div className="animate-spin w-3 h-3 border border-current border-t-transparent rounded-full" />
+                Searching...
+              </>
+            ) : (
+              <>
+                <Search size={14} />
+                Search
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+      
+      {/* Search tips */}
+      {!query && (
+        <div className="mt-3 text-xs text-gray-500">
+          <p>💡 Tip: Try searching for specific terms, topics, or document types</p>
+        </div>
       )}
     </div>
   );
